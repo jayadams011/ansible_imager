@@ -1,0 +1,13 @@
+[Unit]
+Description=django imagersite service
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+EnvironmentFile=/home/ubuntu/django-imager/.env
+WorkingDirectory=/home/ubuntu/django-imager/imagersite
+ExecStart=/home/ubuntu/.local/bin/gunicorn --access-logfile - --preload -w 3 -b 127.0.0.1:8000 imagersite.wsgi
+
+[Install]
+WantedBy=multi-user.target
