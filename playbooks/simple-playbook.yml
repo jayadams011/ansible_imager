@@ -1,6 +1,13 @@
 ---
 - hosts: [us-west]
   remote_user: ubuntu
+  environment: 
+    SECRET_KEY: "{{SECRET_KEY}}"
+    DB_NAME: "{{DB_NAME}}"
+    DB_USER: "{{DB_USER}}"
+    DB_PASSWORD: "{{DB_PASSWORD}}"
+    DB_HOST: "{{DB_HOST}}"
+
   tasks:
     - name: Update the base Unbutu image
       apt: update_cache=yes
@@ -26,6 +33,9 @@
     - name: clone repo
       command: git clone https://github.com/jayadams011/django-imager.git
       when: not repo_stat.stat.exists
+
+    - name: Pull repo
+      command: git -C /home/ubuntu/django-imager pull
       
     
     # Don't forget to collectstatic and migrate if necessary
@@ -36,14 +46,19 @@
       become_method: sudo
 
     - name: Install Gunicorn into Virtual Environment
-      pip: virtualenv=/home/ubuntu/ENV name=gunicorn
+      pip:  virtualenv=/home/ubuntu/ENV name=gunicorn
       become: yes
       become_method: sudo
 
     - name: Install Requirements into virtual env
-      pip: virtualenv=/home/ubuntu/ENV requirements=/home/ubuntu/django-imager/requirements.txt
+      pip:  virtualenv=/home/ubuntu/ENV requirements=/home/ubuntu/django-imager/requirements.txt
       become: yes
       become_method: sudo
+
+    - django_manage:
+        command: migrate
+        app_path: /home/ubuntu/django-imager/imagersite
+        virtualenv: /home/ubuntu/ENV 
 
     # - name: migrate database
     #   command: python3 /home/ubuntu/django-imager/imagersite/manage.py migrate

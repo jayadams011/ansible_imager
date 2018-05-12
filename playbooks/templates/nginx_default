@@ -1,7 +1,7 @@
 server {
         listen 80;
         client_max_body_size 20M;
-        server_name ec2-34-217-31-0.us-west-2.compute.amazonaws.com;
+        server_name ec2-34-217-31-0.us-west-2.compute.amazonaws.com 34.217.31.0;
         access_log /var/log/nginx/django-log.log;
 
         location /static/ {
