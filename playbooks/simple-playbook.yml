@@ -1,6 +1,13 @@
 ---
 - hosts: [us-west]
   remote_user: ubuntu
+  environment: 
+    SECRET_KEY: "{{SECRET_KEY}}"
+    DB_NAME: "{{DB_NAME}}"
+    DB_USER: "{{DB_USER}}"
+    DB_PASSWORD: "{{DB_PASSWORD}}"
+    DB_HOST: "{{DB_HOST}}"
+
   tasks:
     - name: Update the base Unbutu image
       apt: update_cache=yes
@@ -18,6 +25,7 @@
         - build-essential
         - postgresql-client
         - nginx
+
     - name: register imager here
       stat: path=/home/ubuntu/django-imager
       register: repo_stat
@@ -26,35 +34,52 @@
       command: git clone https://github.com/jayadams011/django-imager.git
       when: not repo_stat.stat.exists
 
-    - name: migrate database
-      command: python3 django-imager/imagersite/manage.py/migrate
+    - name: Pull repo
+      command: git -C /home/ubuntu/django-imager pull
       
     
     # Don't forget to collectstatic and migrate if necessary
 
     - name: Create a virtual env for the project to run in
       command: python3 -m venv /home/ubuntu/ENV
-      # become: yes
-      # become_method: sudo
+      become: yes
+      become_method: sudo
 
     - name: Install Gunicorn into Virtual Environment
-      pip: virtualenv=/home/ubuntu/ENV name=gunicorn
-      # become: yes
-      # become_method: sudo
+      pip:  virtualenv=/home/ubuntu/ENV name=gunicorn
+      become: yes
+      become_method: sudo
+
+    - name: Install Requirements into virtual env
+      pip:  virtualenv=/home/ubuntu/ENV requirements=/home/ubuntu/django-imager/requirements.txt
+      become: yes
+      become_method: sudo
+
+    - django_manage:
+        command: migrate
+        app_path: /home/ubuntu/django-imager/imagersite
+        virtualenv: /home/ubuntu/ENV 
+
+    # - name: migrate database
+    #   command: python3 /home/ubuntu/django-imager/imagersite/manage.py migrate
+    #   become: yes
+    #   become_method: sudo
 
     - name: Register the backup default config for nginx
       stat: path=/etc/nginx/sites-available/default.bak
-      register: default_stat
+      register: nginx_stat
+      become: yes
+      become_method: sudo
 
-    - name: mv and rename default nginx config
+    - name: Mv and rename default nginx config
       command: mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.bak
       become: yes
       become_method: sudo
-      when: not default_stat.stat.exists
+      when: not nginx_stat.stat.exists
 
     - name: Create a new Nginx config
       template:
-        src: templates/nginx_config
+        src: templates/nginx_default
         dest: /etc/nginx/sites-available/default
       become: yes
       become_method: sudo
@@ -63,7 +88,7 @@
       stat: path=/etc/systemd/system/gunicorn.service.bak
       register: gunicorn_stat
 
-    - name: mv and rename default gunicorn config
+    - name: Mv and rename default gunicorn config
       command: mv /etc/systemd/system/gunicorn.service /etc/systemd/system/gunicorn.service.bak
       become: yes
       become_method: sudo
@@ -71,7 +96,7 @@
 
     - name: Create a new gunicorn config
       template:
-        src: templates/gunicorn_config
+        src: templates/gunicorn.service
         dest: /etc/systemd/system/gunicorn.service
       become: yes
       become_method: sudo
